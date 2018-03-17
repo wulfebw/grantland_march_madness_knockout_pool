@@ -6,18 +6,7 @@ import pandas as pd
 import urllib.request
 
 # round 2 actually corresponds to first day of tournament
-DAY2ROUND = {
-    0:2,
-    1:2,
-    2:3,
-    3:3,
-    4:4,
-    5:4,
-    6:5,
-    7:5,
-    8:6,
-    9:7
-}
+DAY2ROUND = {0:2, 1:2, 2:3, 3:3, 4:4, 5:4, 6:5, 7:5, 8:6, 9:7}
 
 ''' data loading utilities '''
 
@@ -85,7 +74,11 @@ def extract_days(data, n_days=10):
 
     return days
 
-def load_data(filepath, min_rd2_win=.8, date='2018-03-13'):
+def load_data(filepath, min_rd2_win=.7, date='2018-03-13'):
+    '''
+    note that this only considers selecting teams with a round 2 win prob 
+    greater than min_rd2_win
+    '''
     data = pd.read_csv(filepath)
 
     # only interested in the mens
@@ -116,27 +109,12 @@ def get_max_probs(data, days):
     '''
     these are used to prune the backtracking search to only potentially optimal
     selections
-
-    this is actually an approximation of the max_probs
-    and potentially incorrect at the cost of saving computation
-    the reason being that the order in which you select and remove the 
-    best team each day matters, and this ignores that
-
-    but I'd rather have a ε-correct solution fast than an optimal solution 
-    really slowly in this case because there's already a ton of approximation 
-    built into the prediction probabilities
     '''
     max_probs = []
-    selected = set()
-    for day in reversed(days):
+    for day in days:
         rd_key = 'rd{}_win'.format(DAY2ROUND[day])
-        best = -np.inf
-        for index, row in data.iterrows():
-            if row[rd_key] > best and row['team_name'] not in selected:
-                selected.add(row['team_name'])
-                best = row[rd_key]
-        max_probs.append(best)
-    max_probs = np.cumsum(max_probs[::-1])[::-1] + .3 # sick
+        max_probs.append(np.max(data[rd_key]))
+    max_probs = np.cumsum(max_probs[::-1])[::-1]
     return list(max_probs)
 
 class PredictionSelector(object):
@@ -144,15 +122,10 @@ class PredictionSelector(object):
     Class that performs the backtracking search
     '''
 
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.best_value = -np.inf
-        self.best_selection = None
-        self.value_name_day_cache = {}
-
     def select(self, data, days, max_day=None):
+
+        # initialize
+        self._reset()
         if max_day is None:
             max_day = np.max(list(days.keys()))
         self.max_day = max_day
@@ -198,6 +171,11 @@ class PredictionSelector(object):
         recurse(0, 0, [])
         return self.best_value, self.best_selection
 
+    def _reset(self):
+        self.best_value = -np.inf
+        self.best_selection = None
+        self.value_name_day_cache = {}
+
     def _value_for_name_day(self, data, name, day):
         if (name, day) in self.value_name_day_cache.keys():
             return self.value_name_day_cache[(name, day)]
@@ -213,4 +191,6 @@ if __name__ == '__main__':
     maybe_download(filepath, url)
     data, days = load_data(filepath)
     selector = PredictionSelector()
-    best_value, best_selection = selector.select(data, days, max_day=9)
+    # let's assume everyone else in the pool is overly aggressive and find the 
+    # optimal selections up until day 7, and hope everyone is out by that time
+    best_value, best_selection = selector.select(data, days, max_day=7)
