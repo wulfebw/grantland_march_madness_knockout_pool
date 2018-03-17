@@ -4,7 +4,7 @@ This repo contains a class for selecting "optimal" predictions for the Grantland
 
 It works by performing a pruned backtracking search through all possible selections up until a specified day of the tournament, and returns the optimal selection sequence. Where "optimal" means maximizing the tournament-round probabilities over the whole of the tournament. It relies on the 538 predictions: https://projects.fivethirtyeight.com/2018-march-madness-predictions/ (the program automatically downloads the 2018 predictions)
 
-538 doesn't seem to update the csv file containing round probabilities during the tournament, so this program really only works for the first round of the tournament unless you update the csv file. 
+538 updates the csv file containing round probabilities during the tournament, so just delete the csv file and manually change the date in the `load_data` function to the most recent date.
 
 Also, note that the approach is not actually optimal due to some approximations. Specifically, it allows for selecting teams that are implicitly defeated by an earlier selection. It also doesn't account for the predictions of other people in the knockout pool, which you have to consider for it to really be optimal.
 
